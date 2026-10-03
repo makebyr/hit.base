@@ -3,752 +3,522 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hitbase - Platform OS v2.0</title>
-    <!-- Firebase SDKs -->
+    <title>Hitbase Cloud Console</title>
+
+    <!-- SDKs de Firebase (v8) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    
+
+    <!-- FontAwesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
     <style>
-        /* ESTILOS GLOBALES Y TEMA BLANCO MODERNO */
         :root {
-            --primary: #0066ff;
-            --primary-hover: #0052cc;
-            --bg: #f4f6f9;
-            --panel: #ffffff;
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #111827;
+            --accent-blue: #3b82f6;
+            --accent-hover: #2563eb;
+            --accent-purple: #8b5cf6;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
             --success: #10b981;
             --danger: #ef4444;
             --warning: #f59e0b;
         }
 
-        * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
-        body { margin: 0; background-color: var(--bg); color: var(--text-main); overflow: hidden; height: 100vh; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg-primary); color: var(--text-main); height: 100vh; overflow: hidden; display: flex; }
 
-        /* PANTALLAS DE CARGA */
-        .screen { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #ffffff; z-index: 1000; transition: opacity 0.4s ease; }
-        .hidden { display: none !important; }
+        /* Auth Screen */
+        #auth-container {
+            position: fixed; inset: 0; background: radial-gradient(circle at top right, #1e1b4b, #0f172a);
+            display: flex; justify-content: center; align-items: center; z-index: 9999;
+        }
+        .auth-card {
+            background: var(--bg-secondary); padding: 40px; border-radius: 16px; border: 1px solid var(--border-color);
+            width: 100%; max-width: 420px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); text-align: center;
+        }
+        .auth-card h2 { margin-bottom: 8px; font-size: 1.8rem; background: linear-gradient(to right, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .auth-card p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px; }
+        .input-group { margin-bottom: 16px; text-align: left; }
+        .input-group label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 6px; }
+        .input-group input {
+            width: 100%; padding: 12px; background: var(--bg-primary); border: 1px solid var(--border-color);
+            border-radius: 8px; color: var(--text-main); outline: none; transition: 0.2s;
+        }
+        .input-group input:focus { border-color: var(--accent-blue); }
+        .btn-primary {
+            width: 100%; padding: 12px; background: var(--accent-blue); color: white; border: none;
+            border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; margin-top: 10px;
+        }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .auth-toggle { margin-top: 20px; font-size: 0.85rem; color: var(--text-muted); cursor: pointer; }
+        .auth-toggle span { color: var(--accent-blue); font-weight: 600; }
 
-        /* Animación Makebyr (Letras cayendo) */
-        .falling-text span { display: inline-block; font-size: 4.5rem; font-weight: 900; color: #0f172a; transform: translateY(-180px); opacity: 0; animation: fallDown 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
-        .falling-text span:nth-child(1) { animation-delay: 0.05s; } .falling-text span:nth-child(2) { animation-delay: 0.1s; }
-        .falling-text span:nth-child(3) { animation-delay: 0.15s; } .falling-text span:nth-child(4) { animation-delay: 0.2s; }
-        .falling-text span:nth-child(5) { animation-delay: 0.25s; } .falling-text span:nth-child(6) { animation-delay: 0.3s; }
-        .falling-text span:nth-child(7) { animation-delay: 0.35s; }
-        @keyframes fallDown { to { transform: translateY(0); opacity: 1; } }
+        /* Console Layout */
+        #console-app { display: none; width: 100vw; height: 100vh; flex-direction: flex; }
+        .sidebar {
+            width: 260px; background: var(--bg-secondary); border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column; justify-content: space-between; padding: 20px 12px;
+        }
+        .brand { display: flex; align-items: center; gap: 12px; padding: 0 12px 20px 12px; border-bottom: 1px solid var(--border-color); }
+        .brand-logo { background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 8px 12px; border-radius: 10px; font-weight: 800; font-size: 1.2rem; }
+        .nav-list { margin-top: 20px; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+        .nav-item {
+            padding: 10px 14px; border-radius: 8px; color: var(--text-muted); cursor: pointer;
+            display: flex; align-items: center; gap: 12px; font-size: 0.9rem; transition: 0.2s;
+        }
+        .nav-item:hover, .nav-item.active { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); font-weight: 500; }
+        .nav-item i { width: 20px; text-align: center; }
 
-        /* Spinner Carga HITBASE */
-        #screen-hitbase h1 { font-size: 4.5rem; letter-spacing: 6px; color: var(--primary); margin: 0 0 20px 0; font-weight: 900; text-shadow: 0 10px 25px rgba(0,102,255,0.2); }
-        .spinner { width: 55px; height: 55px; border: 5px solid #e2e8f0; border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .main-content { flex: 1; display: flex; flex-direction: column; background: var(--bg-primary); overflow-y: auto; }
+        .header {
+            height: 65px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center;
+            justify-content: space-between; padding: 0 30px; background: var(--bg-secondary);
+        }
+        .project-selector { display: flex; align-items: center; gap: 10px; background: var(--bg-primary); padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border-color); }
+        .project-selector select { background: transparent; border: none; color: var(--text-main); font-weight: 600; outline: none; cursor: pointer; }
 
-        /* CAPTCHA ANTI-BOTS INTERACTIVO */
-        .login-box { background: var(--panel); padding: 35px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.08); border: 1px solid var(--border); width: 380px; text-align: center; }
-        .login-box h2 { margin-top: 0; color: var(--text-main); font-size: 1.8rem; }
-        .input-group { margin-bottom: 15px; text-align: left; }
-        .input-group label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 5px; }
-        .input-group input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; outline: none; transition: 0.2s; font-size: 0.95rem; }
-        .input-group input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,102,255,0.15); }
-        
-        .captcha-card { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px; margin: 15px 0; text-align: left; }
-        .captcha-title { font-weight: 700; font-size: 0.85rem; color: #334155; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
-        .captcha-slider-container { position: relative; height: 40px; background: #e2e8f0; border-radius: 20px; overflow: hidden; margin-top: 10px; }
-        .captcha-slider-fill { position: absolute; height: 100%; background: var(--primary); width: 0%; transition: width 0.1s; }
-        .captcha-slider-thumb { position: absolute; top: 2px; left: 2px; width: 36px; height: 36px; background: #fff; border-radius: 50%; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; justify-content: center; align-items: center; font-weight: bold; user-select: none; }
-
-        /* DASHBOARD PRINCIPAL */
-        .dashboard-layout { display: flex; height: 100vh; padding: 25px; gap: 25px; background: var(--bg); }
-        .panel-card { background: var(--panel); border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.03); display: flex; flex-direction: column; padding: 22px; }
-        
-        /* Terminal Izquierda */
-        .terminal-container { flex: 1; }
-        .terminal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-        .terminal-output { flex: 1; background: #0f172a; color: #38bdf8; font-family: 'Fira Code', monospace; padding: 15px; border-radius: 10px; overflow-y: auto; white-space: pre-wrap; font-size: 0.9rem; line-height: 1.5; border: 1px solid #1e293b; }
-        .terminal-input-bar { display: flex; align-items: center; background: #0f172a; border-top: 1px solid #1e293b; border-radius: 0 0 10px 10px; padding: 5px 15px; }
-        .terminal-input-bar input { flex: 1; background: transparent; border: none; color: #fff; font-family: monospace; outline: none; padding: 10px; font-size: 0.95rem; }
-
-        /* Panel Lateral Derecho */
-        .controls-container { width: 380px; }
-        .btn-primary { background: var(--primary); color: white; border: none; padding: 14px 20px; border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 12px rgba(0,102,255,0.25); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 1rem; }
-        .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
-        .db-list { flex: 1; overflow-y: auto; margin-top: 15px; display: flex; flex-direction: column; gap: 12px; padding-right: 4px; }
-        .db-card { background: #ffffff; border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-        .db-card:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.05); }
-
-        /* MODALES ANIMADOS */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 3000; opacity: 0; pointer-events: none; transition: 0.25s; }
-        .modal-overlay.active { opacity: 1; pointer-events: all; }
-        .modal-body { background: #fff; padding: 30px; border-radius: 16px; width: 420px; transform: scale(0.9); transition: 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
-        .modal-overlay.active .modal-body { transform: scale(1); }
-
-        /* PANEL DEL PROYECTO (VENTANA INDEPENDIENTE - CORREGIDO BUGS DE CAPAS) */
-        #project-panel { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--bg); z-index: 2000; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.35s ease-in-out; }
-        #project-panel.active { transform: translateX(0); }
-        
-        .project-header { background: #fff; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .project-body { display: flex; flex: 1; overflow: hidden; }
-        
-        .project-sidebar { width: 260px; background: #fff; border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 15px 10px; gap: 4px; }
-        .tab-btn { padding: 12px 16px; border: none; background: transparent; text-align: left; border-radius: 8px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px; font-size: 0.9rem; }
-        .tab-btn:hover { background: #f1f5f9; color: var(--text-main); }
-        .tab-btn.active { background: #eff6ff; color: var(--primary); font-weight: 700; }
-
-        .project-content { flex: 1; padding: 30px; overflow-y: auto; background: var(--bg); }
+        .content-body { padding: 30px; flex: 1; }
         .tab-content { display: none; }
-        .tab-content.active { display: block; animation: fadeIn 0.3s forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .tab-content.active { display: block; }
 
-        /* ESTILOS DE MÓDULOS DEL PROYECTO */
-        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 25px; }
-        .stat-card { background: #fff; padding: 20px; border-radius: 12px; border: 1px solid var(--border); }
-        .stat-card h4 { margin: 0; color: var(--text-muted); font-size: 0.85rem; }
-        .stat-card .value { font-size: 1.8rem; font-weight: 800; color: var(--text-main); margin-top: 8px; }
+        /* UI Cards Grid */
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 25px; }
+        .card { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .card-title { font-size: 0.95rem; color: var(--text-muted); font-weight: 500; }
+        .card-value { font-size: 1.8rem; font-weight: 700; color: var(--text-main); }
 
-        .chart-container { background: #fff; padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 25px; }
+        /* Code Snippet Box */
+        .code-box {
+            background: #090d16; border: 1px solid var(--border-color); border-radius: 8px; padding: 16px;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #38bdf8; position: relative; overflow-x: auto;
+        }
+        .copy-btn { position: absolute; top: 12px; right: 12px; background: var(--border-color); border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; }
 
-        /* TABLA DE USUARIOS */
-        .data-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
-        .data-table th, .data-table td { padding: 14px 18px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-        .data-table th { background: #f8fafc; font-weight: 700; color: var(--text-muted); }
+        /* DB Table / Tree */
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 15px; text-align: left; }
+        .data-table th, .data-table td { padding: 12px 16px; border-bottom: 1px solid var(--border-color); font-size: 0.85rem; }
+        .data-table th { background: var(--bg-card); color: var(--text-muted); font-weight: 600; }
 
-        /* REGLAS EDIT */
-        .rules-editor { width: 100%; height: 280px; background: #0f172a; color: #f8fafc; font-family: monospace; padding: 15px; border-radius: 10px; border: 1px solid var(--border); outline: none; font-size: 0.95rem; resize: none; }
-
-        /* 68 CONFIGURACIONES GRID */
-        .settings-grid-68 { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
-        .setting-box { background: #fff; border: 1px solid var(--border); padding: 14px 18px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .setting-box span { font-size: 0.88rem; font-weight: 600; color: #334155; }
-
-        /* TOGGLE SWITCH */
-        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .3s; border-radius: 24px; }
-        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--success); }
-        input:checked + .slider:before { transform: translateX(20px); }
+        .badge { padding: 4px 8px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .badge-success { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .badge-warning { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
     </style>
 </head>
 <body>
 
-    <!-- PANTALLA 1: Makebyr -->
-    <div id="screen-makebyr" class="screen">
-        <div class="falling-text">
-            <span>M</span><span>a</span><span>k</span><span>e</span><span>b</span><span>y</span><span>r</span>
-        </div>
-    </div>
+    <!-- 1. AUTHENTICATION MODULE -->
+    <div id="auth-container">
+        <div class="auth-card">
+            <div class="brand-logo" style="display:inline-block; margin-bottom: 15px;">HB</div>
+            <h2 id="auth-title">Iniciar Sesión en Hitbase</h2>
+            <p id="auth-subtitle">Accede a la consola unificada de Hitbase Cloud</p>
 
-    <!-- PANTALLA 2: HITBASE + SPINNER -->
-    <div id="screen-hitbase" class="screen hidden">
-        <h1>HITBASE</h1>
-        <div class="spinner"></div>
-    </div>
-
-    <!-- PANTALLA 3: LOGIN CON CAPTCHA ANTI-IA -->
-    <div id="screen-login" class="screen hidden">
-        <div class="login-box">
-            <h2>Hitbase Console</h2>
-            <p style="color: var(--text-muted); font-size:0.9rem; margin-bottom: 20px;">Acceso seguro a Realtime Database</p>
-            
             <div class="input-group">
-                <label>Usuario / Email</label>
-                <input type="text" id="user-input" placeholder="admin@hitbase.io">
+                <label>Correo Electrónico</label>
+                <input type="email" id="auth-email" placeholder="dev@hitbase.io">
             </div>
             <div class="input-group">
                 <label>Contraseña</label>
-                <input type="password" id="pass-input" placeholder="••••••••">
+                <input type="password" id="auth-pass" placeholder="••••••••">
             </div>
 
-            <!-- CAPTCHA DOBLE ANTI-IA -->
-            <div class="captcha-card">
-                <div class="captcha-title">
-                    <span>🛡️ Verificación Humana</span>
-                    <span id="captcha-math-question" style="color:var(--primary); font-family:monospace;">5 + 3 = ?</span>
+            <button class="btn-primary" id="btn-auth-submit" onclick="handleAuth()">Ingresar</button>
+
+            <div class="auth-toggle" onclick="toggleAuthMode()">
+                <span id="auth-toggle-text">¿No tienes cuenta? Regístrate aquí</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. MAIN HITBASE CONSOLE APPLICATION -->
+    <div id="console-app">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div>
+                <div class="brand">
+                    <div class="brand-logo">HITBASE</div>
                 </div>
-                <input type="number" id="captcha-math-answer" placeholder="Respuesta matemática" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; font-size:0.85rem;">
+                <ul class="nav-list">
+                    <li class="nav-item active" onclick="switchTab('tab-dashboard', this)"><i class="fa-solid fa-chart-pie"></i> Visión General</li>
+                    <li class="nav-item" onclick="switchTab('tab-projects', this)"><i class="fa-solid fa-folder-plus"></i> Mis Proyectos</li>
+                    <li class="nav-item" onclick="switchTab('tab-database', this)"><i class="fa-solid fa-database"></i> Realtime DB</li>
+                    <li class="nav-item" onclick="switchTab('tab-auth', this)"><i class="fa-solid fa-users"></i> Autenticación</li>
+                    <li class="nav-item" onclick="switchTab('tab-rules', this)"><i class="fa-solid fa-shield-halved"></i> Reglas & Seguridad</li>
+                    <li class="nav-item" onclick="switchTab('tab-storage', this)"><i class="fa-solid fa-hard-drive"></i> Storage Buckets</li>
+                    <li class="nav-item" onclick="switchTab('tab-functions', this)"><i class="fa-solid fa-bolt"></i> Edge Functions</li>
+                    <li class="nav-item" onclick="switchTab('tab-analytics', this)"><i class="fa-solid fa-wave-square"></i> Métricas & Logs</li>
+                    <li class="nav-item" onclick="switchTab('tab-settings', this)"><i class="fa-solid fa-gear"></i> Configuración API</li>
+                </ul>
+            </div>
+            <div>
+                <div class="nav-item" onclick="logout()" style="color: var(--danger);"><i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión</div>
+            </div>
+        </aside>
+
+        <!-- Main Body -->
+        <main class="main-content">
+            <!-- Header Bar -->
+            <header class="header">
+                <div class="project-selector">
+                    <i class="fa-solid fa-cube" style="color: var(--accent-blue)"></i>
+                    <select id="active-project-select" onchange="changeProject(this.value)">
+                        <option value="HTB-6I0HYBL">Mi Juego Principal (HTB-6I0HYBL)</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <span class="badge badge-success"><i class="fa-solid fa-circle"></i> Hitbase Engine v2.4 Activo</span>
+                    <span id="user-display" style="font-size: 0.85rem; color: var(--text-muted);">dev@hitbase.io</span>
+                </div>
+            </header>
+
+            <div class="content-body">
                 
-                <div class="captcha-slider-container">
-                    <div class="captcha-slider-fill" id="slider-fill"></div>
-                    <div class="captcha-slider-thumb" id="slider-thumb">></div>
-                </div>
-                <small id="captcha-status" style="display:block; font-size:0.75rem; color:var(--text-muted); margin-top:5px; text-align:center;">Mueve el deslizador a la derecha</small>
-            </div>
-
-            <button class="btn-primary" onclick="procesarLogin()">Iniciar Sesión</button>
-        </div>
-    </div>
-
-    <!-- MAIN DASHBOARD PRINCIPAL -->
-    <div id="main-dashboard" class="dashboard-layout screen hidden">
-        <!-- Terminal Hitbase (Izquierda) -->
-        <div class="panel-card terminal-container">
-            <div class="terminal-header">
-                <h3 style="margin:0; font-size:1.1rem; font-weight:800;">⚡ Terminal de Comandos OS</h3>
-                <span style="font-size:0.8rem; background:#e2e8f0; padding:3px 10px; border-radius:12px; font-weight:600;">v2.0.4 Online</span>
-            </div>
-            <div class="terminal-output" id="term-out">Hitbase OS v2.0 Iniciado.\nConectado al motor Realtime Database.\nEscribe /help para ver la lista de comandos disponibles.</div>
-            <div class="terminal-input-bar">
-                <span style="color:#38bdf8; font-weight:bold; margin-right:8px;">></span>
-                <input type="text" id="term-in" placeholder="Escribe un comando (/help, /crear, /clear)..." autocomplete="off">
-            </div>
-        </div>
-
-        <!-- Panel Lateral (Derecha) -->
-        <div class="panel-card controls-container">
-            <button class="btn-primary" onclick="abrirModalCrear()">+ Crear Nueva Base de Datos</button>
-            <h4 style="margin: 20px 0 10px 0; font-size:0.95rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Bases de Datos Activas</h4>
-            <div class="db-list" id="lista-databases">
-                <!-- Se puebla desde JS -->
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL CREAR BASE DE DATOS -->
-    <div class="modal-overlay" id="modal-crear">
-        <div class="modal-body">
-            <h3 style="margin-top:0;">Crear Instancia de Base de Datos</h3>
-            <p style="color:var(--text-muted); font-size:0.9rem;">Se asignará una dirección 'hit./' y una API Key para tu juego o app.</p>
-            <div class="input-group">
-                <label>Nombre del Proyecto / Juego</label>
-                <input type="text" id="new-dbname" placeholder="Ej: CyberGame2026">
-            </div>
-            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
-                <button onclick="cerrarModalCrear()" style="padding:10px 18px; border:none; background:#e2e8f0; border-radius:8px; cursor:pointer; font-weight:600;">Cancelar</button>
-                <button class="btn-primary" onclick="confirmarCreacionDB()" style="width:auto;">Crear Instancia</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- PANEL DEL PROYECTO SELECCIONADO (CON APARTADOS EN VIVO Y FUNCIONALES) -->
-    <div id="project-panel">
-        <div class="project-header">
-            <div style="display:flex; align-items:center; gap:15px;">
-                <button onclick="cerrarPanelProyecto()" style="padding:8px 16px; border:1px solid var(--border); background:#fff; border-radius:8px; cursor:pointer; font-weight:600;">← Volver</button>
-                <h2 id="proj-title" style="margin:0; font-size:1.3rem;">MiProyecto</h2>
-            </div>
-            <div style="background:#e0f2fe; color:#0284c7; padding:6px 14px; border-radius:20px; font-family:monospace; font-weight:700;" id="proj-domain">hit./HTB-XXXXXX</div>
-            <div style="display:flex; align-items:center; gap:10px;">
-                <span id="server-status-label" style="color:var(--success); font-weight:700;">Servidor Encendido</span>
-                <label class="switch">
-                    <input type="checkbox" id="server-toggle-btn" checked onchange="toggleEstadoServidor()">
-                    <span class="slider"></span>
-                </label>
-            </div>
-        </div>
-
-        <div class="project-body">
-            <!-- Sidebar del Proyecto -->
-            <div class="project-sidebar">
-                <button class="tab-btn active" onclick="switchTab('tab-live')">📊 Monitor en Vivo</button>
-                <button class="tab-btn" onclick="switchTab('tab-files')">🗂️ Explorador DB (Files)</button>
-                <button class="tab-btn" onclick="switchTab('tab-users')">👥 Gestor de Usuarios</button>
-                <button class="tab-btn" onclick="switchTab('tab-rules')">🛡️ Reglas de Seguridad</button>
-                <button class="tab-btn" onclick="switchTab('tab-analytics')">📈 Registros & Logs</button>
-                <button class="tab-btn" onclick="switchTab('tab-settings68')">⚙️ 68 Ajustes Globales</button>
-                <button class="tab-btn" onclick="switchTab('tab-code')">💻 Integración & Código</button>
-            </div>
-
-            <!-- Contenidos de pestañas -->
-            <div class="project-content">
-                
-                <!-- 1. MONITOR EN VIVO -->
-                <div id="tab-live" class="tab-content active">
-                    <h3>Estado Operativo en Tiempo Real</h3>
-                    <div class="stats-grid">
-                        <div class="stat-card"><h4>Jugadores Conectados</h4><div class="value" id="val-players">248</div></div>
-                        <div class="stat-card"><h4>Peticiones / seg</h4><div class="value" id="val-reqs">1,420</div></div>
-                        <div class="stat-card"><h4>Latencia Media</h4><div class="value" style="color:var(--success);" id="val-ping">18 ms</div></div>
-                        <div class="stat-card"><h4>Uso de Ancho de Banda</h4><div class="value" id="val-bandwidth">4.2 MB/s</div></div>
+                <!-- TAB: DASHBOARD OVERVIEW -->
+                <div id="tab-dashboard" class="tab-content active">
+                    <h2 style="margin-bottom: 20px;">Visión General del Proyecto</h2>
+                    <div class="grid-3">
+                        <div class="card">
+                            <div class="card-header"><span class="card-title">Peticiones API (24h)</span><i class="fa-solid fa-arrow-trend-up" style="color:var(--success)"></i></div>
+                            <div class="card-value" id="stat-requests">142,850</div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header"><span class="card-title">Conexiones Activas</span><i class="fa-solid fa-network-wired" style="color:var(--accent-blue)"></i></div>
+                            <div class="card-value" id="stat-connections">384</div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header"><span class="card-title">Ancho de Banda</span><i class="fa-solid fa-cloud-arrow-down" style="color:var(--accent-purple)"></i></div>
+                            <div class="card-value">1.2 GB</div>
+                        </div>
                     </div>
 
-                    <div class="chart-container">
-                        <h4 style="margin-top:0;">Tráfico de Red y Operaciones (Sockets)</h4>
-                        <canvas id="live-chart" height="90"></canvas>
+                    <div class="card" style="margin-bottom: 20px;">
+                        <h3 style="font-size: 1rem; margin-bottom: 12px;">Código de Integración Hitbase (Cliente HTML/JS)</h3>
+                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Inserta esta configuración en cualquier archivo `.html` para habilitar el SDK de Hitbase en tu aplicación sin exponer credenciales externas:</p>
+                        <div class="code-box">
+                            <button class="copy-btn" onclick="copySnippet()">Copiar Código</button>
+                            <pre id="snippet-code">&lt;!-- Hitbase Engine v2 CDN --&gt;
+&lt;script src="https://cdn.makebyr.github.io/hit.base/v2/hitbase.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  Hitbase.initializeApp({
+      apiKey: "HTB-6I0HYBL",
+      serverDomain: "hit./HTB-6I0HYBL"
+  });
+&lt;/script&gt;</pre>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 2. EXPLORADOR DB -->
-                <div id="tab-files" class="tab-content">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                        <h3 style="margin:0;">Explorador de Archivos (Realtime Nodes)</h3>
-                        <button class="btn-primary" onclick="agregarNodoDB()" style="width:auto; padding:8px 16px;">+ Crear Caja / Nodo</button>
+                <!-- TAB: PROJECT CREATOR -->
+                <div id="tab-projects" class="tab-content">
+                    <h2 style="margin-bottom: 20px;">Gestor de Proyectos Hitbase</h2>
+                    <div class="card" style="max-width: 600px; margin-bottom: 25px;">
+                        <h3 style="margin-bottom: 15px;">Crear Nuevo Proyecto Hitbase</h3>
+                        <div class="input-group">
+                            <label>Nombre del Proyecto / Juego</label>
+                            <input type="text" id="new-proj-name" placeholder="Ej: MiSuperJuego2D">
+                        </div>
+                        <div class="input-group">
+                            <label>Dominio / Slug Personalizado</label>
+                            <input type="text" id="new-proj-domain" placeholder="hit./mi-super-juego">
+                        </div>
+                        <button class="btn-primary" onclick="createProject()">Generar Proyecto & Hitbase API Key</button>
                     </div>
-                    <div style="background:#fff; border:1px solid var(--border); border-radius:12px; padding:20px;" id="db-tree-container">
-                        <!-- Nodos -->
+
+                    <div class="card">
+                        <h3>Lista de Proyectos Activos</h3>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID del Proyecto</th>
+                                    <th>Hitbase API Key</th>
+                                    <th>Servidor / Domain</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="projects-table-body">
+                                <tr>
+                                    <td>Mi Juego Principal</td>
+                                    <td><code>HTB-6I0HYBL</code></td>
+                                    <td><code>hit./HTB-6I0HYBL</code></td>
+                                    <td><span class="badge badge-success">Activo</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
-                <!-- 3. GESTOR DE USUARIOS -->
-                <div id="tab-users" class="tab-content">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                        <h3 style="margin:0;">Cuentas de Usuarios Registrados</h3>
-                        <button class="btn-primary" onclick="crearNuevoUsuario()" style="width:auto; padding:8px 16px;">+ Registrar Jugador</button>
+                <!-- TAB: REALTIME DATABASE INSPECTOR -->
+                <div id="tab-database" class="tab-content">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                        <h2>Realtime Database Inspector</h2>
+                        <button class="btn-primary" style="width:auto; padding: 8px 16px;" onclick="addDatabaseNode()"><i class="fa-solid fa-plus"></i> Nuevo Nodo/Dato</button>
                     </div>
-                    <table class="data-table">
-                        <thead>
-                            <tr><th>ID / Username</th><th>Email</th><th>Nivel</th><th>Monedas</th><th>Estado</th><th>Acciones</th></tr>
-                        </thead>
-                        <tbody id="users-table-body">
-                            <!-- Filas generadas -->
-                        </tbody>
-                    </table>
+
+                    <div class="card">
+                        <div style="display:flex; gap: 10px; margin-bottom: 15px;">
+                            <input type="text" id="db-path-input" value="hitbase_chats/HTB-6I0HYBL/mensajes" style="flex:1; padding: 10px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; color: white;">
+                            <button class="btn-primary" style="width:auto;" onclick="fetchDatabaseNode()">Explorar</button>
+                        </div>
+                        <div class="code-box" style="min-height: 250px;">
+                            <pre id="db-json-viewer">// Cargando datos en tiempo real desde Hitbase Engine...</pre>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- 4. REGLAS DE SEGURIDAD -->
+                <!-- TAB: AUTHENTICATION USERS -->
+                <div id="tab-auth" class="tab-content">
+                    <h2 style="margin-bottom: 20px;">Usuarios de la Aplicación</h2>
+                    <div class="card">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID Usuario (UID)</th>
+                                    <th>Nombre / Email</th>
+                                    <th>Último Acceso</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>usr_992183</code></td>
+                                    <td>jugador_pro@hitbase.io</td>
+                                    <td>Hace 2 minutos</td>
+                                    <td><span class="badge badge-success">Conectado</span></td>
+                                </tr>
+                                <tr>
+                                    <td><code>usr_441209</code></td>
+                                    <td>tester_alpha@hitbase.io</td>
+                                    <td>Hace 1 hora</td>
+                                    <td><span class="badge badge-warning">Inactivo</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB: RULES & SECURITY -->
                 <div id="tab-rules" class="tab-content">
-                    <h3>Reglas de Acceso a la Base de Datos</h3>
-                    <p style="color:var(--text-muted); font-size:0.9rem;">Configura quién puede leer o escribir datos en tu proyecto.</p>
-                    
-                    <div style="margin-bottom:10px; display:flex; gap:10px;">
-                        <button onclick="setRulePreset('public')" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:#fff; cursor:pointer;">Preset: Público</button>
-                        <button onclick="setRulePreset('readonly')" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:#fff; cursor:pointer;">Preset: Solo Lectura</button>
-                        <button onclick="setRulePreset('private')" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:#fff; cursor:pointer;">Preset: Privado Estricto</button>
-                    </div>
-
-                    <textarea class="rules-editor" id="rules-text">{
+                    <h2 style="margin-bottom: 20px;">Reglas de Seguridad Hitbase</h2>
+                    <div class="card">
+                        <p style="margin-bottom: 15px; color: var(--text-muted); font-size: 0.9rem;">Configura el acceso de lectura/escritura a tu base de datos mediante JSON declarativo:</p>
+                        <div class="code-box">
+<pre>{
   "rules": {
-    ".read": "auth != null",
-    ".write": "auth != null",
-    "jugadores": {
-      ".indexOn": ["score", "nivel"]
+    "hitbase_projects": {
+      "HTB-6I0HYBL": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
     }
   }
-}</textarea>
-                    <button class="btn-primary" onclick="guardarReglas()" style="width:auto; margin-top:15px;">Guardar y Aplicar Reglas</button>
+}</pre>
+                        </div>
+                        <button class="btn-primary" style="width:auto; margin-top:15px;">Publicar Reglas</button>
+                    </div>
                 </div>
 
-                <!-- 5. REGISTROS & ANALÍTICAS -->
+                <!-- TAB: STORAGE BUCKETS -->
+                <div id="tab-storage" class="tab-content">
+                    <h2 style="margin-bottom: 20px;">Storage Buckets (Archivos)</h2>
+                    <div class="card" style="text-align: center; padding: 40px;">
+                        <i class="fa-solid fa-cloud-arrow-up" style="font-size: 3rem; color: var(--accent-blue); margin-bottom: 15px;"></i>
+                        <h3>Arrastra archivos para subirlos a tu CDN de Hitbase</h3>
+                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px;">Soporta assets de juegos, imágenes, audios y archivos binarios.</p>
+                    </div>
+                </div>
+
+                <!-- TAB: EDGE FUNCTIONS -->
+                <div id="tab-functions" class="tab-content">
+                    <h2 style="margin-bottom: 20px;">Edge Functions & Webhooks</h2>
+                    <div class="card">
+                        <h3>Hitbase Cloud Triggers</h3>
+                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">Ejecuta código serverless cuando un dato sea escrito en la base de datos.</p>
+                        <button class="btn-primary" style="width:auto;"><i class="fa-solid fa-code"></i> Crear Nueva Edge Function</button>
+                    </div>
+                </div>
+
+                <!-- TAB: ANALYTICS -->
                 <div id="tab-analytics" class="tab-content">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                        <h3 style="margin:0;">Histórico de Operaciones</h3>
-                        <button onclick="limpiarLogs()" style="padding:8px 16px; border:1px solid var(--border); border-radius:8px; background:#fff; cursor:pointer;">Limpiar Historial</button>
-                    </div>
-                    <div class="terminal-output" id="analytics-log-box" style="height:350px;">
-                        [INFO] [System] Instancia vinculada correctamente.<br>
-                        [READ] Path: /jugadores/online - Status 200 OK (12ms)<br>
-                        [WRITE] Path: /partidas/room_1 - Payload: 1.2KB - Status 200 OK (15ms)<br>
-                    </div>
-                </div>
-
-                <!-- 6. 68 AJUSTES GLOBALES -->
-                <div id="tab-settings68" class="tab-content">
-                    <h3>Configuración Avanzada (68 Parámetros)</h3>
-                    <p style="color:var(--text-muted); font-size:0.9rem;">Ajustes completos para motor de juegos, chats y balance de red.</p>
-                    <div class="settings-grid-68" id="container-68-settings">
-                        <!-- Generado por JS -->
+                    <h2 style="margin-bottom: 20px;">Métricas de Rendimiento & Logs</h2>
+                    <div class="card">
+                        <h3>Eventos de Servidor en Tiempo Real</h3>
+                        <div class="code-box" style="height: 200px; margin-top: 15px;">
+                            <div style="color:#10b981;">[14:02:11 INFO] WS Client connected: HTB-6I0HYBL (IP: 190.202.x.x)</div>
+                            <div style="color:#38bdf8;">[14:02:15 DB_WRITE] Node '/mensajes' updated successfully.</div>
+                            <div style="color:#10b981;">[14:02:22 INFO] Session persisted via LocalStorage token.</div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 7. CÓDIGO E INTEGRACIÓN -->
-                <div id="tab-code" class="tab-content">
-                    <h3>Código de Conexión para tu Juego</h3>
-                    <p style="color:var(--text-muted); font-size:0.9rem;">Copia este código y colócalo en tu HTML para guardar inicios de sesión, posiciones o datos.</p>
-                    <pre style="background:#0f172a; color:#f8fafc; padding:20px; border-radius:12px; overflow-x:auto;"><code id="code-snippet-box">
-// Importa el CDN de Hitbase
-&lt;script src="https://cdn.makebyr.github.io/hit.base/v2/hitbase.js"&gt;&lt;/script&gt;
-
-&lt;script&gt;
-  const hitbaseConfig = {
-      apiKey: "HITBASE_API_KEY_AQUI",
-      serverDomain: "hit./HITBASE_API_KEY_AQUI"
-  };
-  Hitbase.initializeApp(hitbaseConfig);
-
-  // Instancia de Realtime Database
-  const create_file_realtimedatabase = Hitbase.database();
-
-  // Ejemplo: Guardar movimiento de un jugador
-  function guardarMovimiento(jugadorId, posX, posY) {
-      create_file_realtimedatabase.ref('jugadores/' + jugadorId).set({
-          x: posX,
-          y: posY,
-          ultimaActualizacion: Date.now()
-      });
-  }
-&lt;/script&gt;
-                    </code></pre>
+                <!-- TAB: SETTINGS -->
+                <div id="tab-settings" class="tab-content">
+                    <h2 style="margin-bottom: 20px;">Configuración Global del Engine</h2>
+                    <div class="card" style="max-width: 600px;">
+                        <h3 style="margin-bottom: 15px;">Llaves maestras de la API</h3>
+                        <div class="input-group">
+                            <label>Hitbase Master Project ID</label>
+                            <input type="text" value="raty-studios-servers" readonly>
+                        </div>
+                        <div class="input-group">
+                            <label>Realtime Engine Database URL</label>
+                            <input type="text" value="https://raty-studios-servers-default-rtdb.firebaseio.com" readonly>
+                        </div>
+                    </div>
                 </div>
 
             </div>
-        </div>
+        </main>
     </div>
 
+    <!-- 3. HITBASE CONSOLE LOGIC & FIREBASE SYNC -->
     <script>
-        // --- 1. FIREBASE CONFIG ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyCKvNViTMiARSW5sa5BoIZmF9cm7XL9bQY",
-            authDomain: "raty-studios-servers.firebaseapp.com",
-            databaseURL: "https://raty-studios-servers-default-rtdb.firebaseio.com",
-            projectId: "raty-studios-servers"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+      // Credenciales del motor Firebase subyacente de Hitbase
+      const firebaseConfig = {
+          apiKey: "AIzaSyCKvNViTMiARSW5sa5BoIZmF9cm7XL9bQY",
+          authDomain: "raty-studios-servers.firebaseapp.com",
+          databaseURL: "https://raty-studios-servers-default-rtdb.firebaseio.com",
+          projectId: "raty-studios-servers"
+      };
 
-        // --- 2. CAPTCHA DOBLE ANTI-IA ---
-        let captchaMathRes = 0;
-        let sliderCompleted = false;
+      firebase.initializeApp(firebaseConfig);
+      const auth = firebase.auth();
+      const database = firebase.database();
 
-        function generarCaptchaMath() {
-            const num1 = Math.floor(Math.random() * 10) + 1;
-            const num2 = Math.floor(Math.random() * 10) + 1;
-            captchaMathRes = num1 + num2;
-            document.getElementById('captcha-math-question').innerText = `${num1} + ${num2} = ?`;
-        }
+      let isRegisterMode = false;
 
-        // Lógica del Deslizador
-        const sliderThumb = document.getElementById('slider-thumb');
-        const sliderFill = document.getElementById('slider-fill');
-        let isDragging = false;
+      // Persistencia automática de sesión
+      auth.onAuthStateChanged((user) => {
+          if (user) {
+              document.getElementById('auth-container').style.display = 'none';
+              document.getElementById('console-app').style.display = 'flex';
+              document.getElementById('user-display').innerText = user.email;
+              initConsoleData();
+          } else {
+              document.getElementById('auth-container').style.display = 'flex';
+              document.getElementById('console-app').style.display = 'none';
+          }
+      });
 
-        sliderThumb.addEventListener('mousedown', () => isDragging = true);
-        window.addEventListener('mouseup', () => isDragging = false);
-        window.addEventListener('mousemove', (e) => {
-            if(!isDragging || sliderCompleted) return;
-            const container = document.querySelector('.captcha-slider-container');
-            const rect = container.getBoundingClientRect();
-            let offsetX = e.clientX - rect.left - 18;
-            if(offsetX < 0) offsetX = 0;
-            if(offsetX > rect.width - 38) {
-                offsetX = rect.width - 38;
-                sliderCompleted = true;
-                document.getElementById('captcha-status').innerText = "✓ Deslizador Verificado";
-                document.getElementById('captcha-status').style.color = "var(--success)";
-            }
-            sliderThumb.style.left = offsetX + 'px';
-            sliderFill.style.width = (offsetX + 18) + 'px';
-        });
+      // Alternar Login / Registro
+      function toggleAuthMode() {
+          isRegisterMode = !isRegisterMode;
+          document.getElementById('auth-title').innerText = isRegisterMode ? "Crear Cuenta en Hitbase" : "Iniciar Sesión en Hitbase";
+          document.getElementById('btn-auth-submit').innerText = isRegisterMode ? "Registrarme" : "Ingresar";
+          document.getElementById('auth-toggle-text').innerText = isRegisterMode ? "¿Ya tienes cuenta? Inicia sesión" : "¿No tienes cuenta? Regístrate aquí";
+      }
 
-        // --- 3. CICLO DE ANIMACIONES INICIALES ---
-        window.onload = () => {
-            generarCaptchaMath();
-            setTimeout(() => {
-                document.getElementById('screen-makebyr').classList.add('hidden');
-                document.getElementById('screen-hitbase').classList.remove('hidden');
-                
-                setTimeout(() => {
-                    document.getElementById('screen-hitbase').classList.add('hidden');
-                    if(localStorage.getItem('hitbase_session_v2') === 'true') {
-                        mostrarDashboardMain();
-                    } else {
-                        document.getElementById('screen-login').classList.remove('hidden');
-                    }
-                }, 1600);
-            }, 2400);
-        };
+      // Autenticación
+      async function handleAuth() {
+          const email = document.getElementById('auth-email').value;
+          const pass = document.getElementById('auth-pass').value;
 
-        function procesarLogin() {
-            const mathVal = parseInt(document.getElementById('captcha-math-answer').value);
-            if(mathVal !== captchaMathRes) {
-                alert("Verificación matemática incorrecta.");
-                generarCaptchaMath();
-                return;
-            }
-            if(!sliderCompleted) {
-                alert("Por favor completa el deslizador anti-robots.");
-                return;
-            }
+          if (!email || !pass) return alert("Por favor ingresa correo y contraseña.");
 
-            localStorage.setItem('hitbase_session_v2', 'true');
-            document.getElementById('screen-login').classList.add('hidden');
-            mostrarDashboardMain();
-        }
+          try {
+              if (isRegisterMode) {
+                  await auth.createUserWithEmailAndPassword(email, pass);
+              } else {
+                  await auth.signInWithEmailAndPassword(email, pass);
+              }
+          } catch (err) {
+              alert("Error de autenticación: " + err.message);
+          }
+      }
 
-        function mostrarDashboardMain() {
-            document.getElementById('main-dashboard').classList.remove('hidden');
-            cargarDatabasesFirebase();
-            iniciarTerminal();
-            generar68Ajustes();
-            iniciarChartEnVivo();
-            poblarUsuariosSimulados();
-            poblarArbolDBDefault();
-        }
+      function logout() {
+          auth.signOut();
+      }
 
-        // --- 4. TERMINAL INTERACTIVA ---
-        const termOut = document.getElementById('term-out');
-        const termIn = document.getElementById('term-in');
+      // Navegación por pestañas
+      function switchTab(tabId, element) {
+          document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+          document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
 
-        function printTerm(text) {
-            termOut.innerText += "\n> " + text;
-            termOut.scrollTop = termOut.scrollHeight;
-        }
+          document.getElementById(tabId).classList.add('active');
+          if(element) element.classList.add('active');
+      }
 
-        function iniciarTerminal() {
-            termIn.addEventListener('keypress', (e) => {
-                if(e.key === 'Enter') {
-                    const cmd = termIn.value.trim();
-                    if(cmd === '/help') printTerm("Comandos: /help, /crear, /clear, /status");
-                    else if(cmd === '/crear') abrirModalCrear();
-                    else if(cmd === '/clear') termOut.innerText = "Terminal limpia.";
-                    else if(cmd === '/status') printTerm("Sistema Online - 0 Errores detectados.");
-                    else if(cmd !== '') printTerm("Comando no reconocido. Prueba /help");
-                    termIn.value = '';
-                }
-            });
-        }
+      // Inicializar datos en la consola desde Realtime DB
+      function initConsoleData() {
+          fetchDatabaseNode();
+      }
 
-        // --- 5. BASES DE DATOS FIREBASE (CORREGIDO BUG DE NOMBRES Y LLAVES) ---
-        function cargarDatabasesFirebase() {
-            const listEl = document.getElementById('lista-databases');
-            listEl.innerHTML = '<span style="color:var(--text-muted); font-size:0.9rem;">Cargando instancias...</span>';
+      // Cargar nodo de base de datos
+      function fetchDatabaseNode() {
+          const path = document.getElementById('db-path-input').value;
+          const viewer = document.getElementById('db-json-viewer');
 
-            database.ref('hitbase_proyectos').on('value', (snapshot) => {
-                listEl.innerHTML = '';
-                const data = snapshot.val();
-                if(!data) {
-                    listEl.innerHTML = '<small style="color:var(--text-muted);">No hay bases de datos aún.</small>';
-                    return;
-                }
+          database.ref(path).on('value', (snapshot) => {
+              const data = snapshot.val();
+              viewer.innerText = JSON.stringify(data, null, 2) || "// Nodo vacío o sin datos";
+          });
+      }
 
-                Object.keys(data).forEach((key) => {
-                    const item = data[key];
-                    const apiKey = item.apiKey || item.api_key_asignada || ("HTB-" + key.toUpperCase());
+      // Agregar nodo
+      function addDatabaseNode() {
+          const path = document.getElementById('db-path-input').value;
+          const key = prompt("Ingresa la clave del nuevo registro:", "mensaje_" + Date.now());
+          const value = prompt("Ingresa el valor:", "Hola mundo desde Hitbase Console");
 
-                    const card = document.createElement('div');
-                    card.className = 'db-card';
-                    card.innerHTML = `
-                        <div>
-                            <strong style="display:block; font-size:1rem; color:var(--text-main);">${key}</strong>
-                            <span style="font-size:0.78rem; font-family:monospace; color:var(--text-muted);">Key: ${apiKey}</span>
-                        </div>
-                        <button class="btn-primary" style="width:auto; padding:6px 14px; font-size:0.85rem;" onclick="abrirPanelProyecto('${key}', '${apiKey}')">Panel →</button>
-                    `;
-                    listEl.appendChild(card);
-                });
-            });
-        }
+          if(key && value) {
+              database.ref(path + '/' + key).set(value);
+          }
+      }
 
-        function abrirModalCrear() { document.getElementById('modal-crear').classList.add('active'); }
-        function cerrarModalCrear() { document.getElementById('modal-crear').classList.remove('active'); }
+      // Crear nuevo proyecto Hitbase
+      function createProject() {
+          const name = document.getElementById('new-proj-name').value;
+          const domain = document.getElementById('new-proj-domain').value;
 
-        function confirmarCreacionDB() {
-            const dbName = document.getElementById('new-dbname').value.trim();
-            if(!dbName) return alert("Ingresa un nombre válido.");
+          if (!name) return alert("Ingresa un nombre para el proyecto.");
 
-            const keyGenerated = "HTB-" + Math.random().toString(36).substr(2, 7).toUpperCase();
-            
-            database.ref('hitbase_proyectos/' + dbName).set({
-                creador: "Admin",
-                apiKey: keyGenerated,
-                fecha: new Date().toISOString()
-            }).then(() => {
-                printTerm(`Base de datos '${dbName}' instanciada con éxito.`);
-                cerrarModalCrear();
-                document.getElementById('new-dbname').value = '';
-            });
-        }
+          const key = "HTB-" + Math.random().toString(36).substring(2, 9).toUpperCase();
+          const table = document.getElementById('projects-table-body');
 
-        // --- 6. PANEL DEL PROYECTO SELECCIONADO ---
-        let currentOpenKey = "";
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+              <td>${name}</td>
+              <td><code>${key}</code></td>
+              <td><code>${domain || 'hit./' + key}</code></td>
+              <td><span class="badge badge-success">Activo</span></td>
+          `;
+          table.appendChild(tr);
 
-        function abrirPanelProyecto(name, apiKey) {
-            currentOpenKey = apiKey;
-            document.getElementById('proj-title').innerText = name;
-            document.getElementById('proj-domain').innerText = `hit./${apiKey}`;
+          // Agregar al dropdown de selección de proyecto
+          const select = document.getElementById('active-project-select');
+          const opt = document.createElement('option');
+          opt.value = key;
+          opt.innerText = `${name} (${key})`;
+          select.appendChild(opt);
 
-            // Actualizar snippet
-            const box = document.getElementById('code-snippet-box');
-            box.innerText = box.innerText.replace(/HITBASE_API_KEY_AQUI/g, apiKey);
+          alert(`¡Proyecto '${name}' creado exitosamente!\nTu Hitbase API Key es: ${key}`);
+          document.getElementById('new-proj-name').value = '';
+          document.getElementById('new-proj-domain').value = '';
+      }
 
-            document.getElementById('project-panel').classList.add('active');
-        }
+      function changeProject(key) {
+          document.getElementById('snippet-code').innerText = 
+`<script src="https://cdn.hitbase.io/v2/hitbase.js"><\/script>
+<script>
+  Hitbase.initializeApp({
+      apiKey: "${key}",
+      serverDomain: "hit./${key}"
+  });
+<\/script>`;
+      }
 
-        function cerrarPanelProyecto() {
-            document.getElementById('project-panel').classList.remove('active');
-        }
-
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            
-            document.getElementById(tabId).classList.add('active');
-            event.currentTarget.classList.add('active');
-        }
-
-        function toggleEstadoServidor() {
-            const isChecked = document.getElementById('server-toggle-btn').checked;
-            const label = document.getElementById('server-status-label');
-            if(isChecked) {
-                label.innerText = "Servidor Encendido";
-                label.style.color = "var(--success)";
-                addLog("[SYS] Servidor reanudado.");
-            } else {
-                label.innerText = "Servidor Apagado";
-                label.style.color = "var(--danger)";
-                addLog("[SYS] SERVIDOR APAGADO - Rechazando peticiones.");
-            }
-        }
-
-        // --- 7. MÓDULOS EN VIVO Y TABLAS ---
-        function iniciarChartEnVivo() {
-            const canvas = document.getElementById('live-chart');
-            if(!canvas) return;
-            const ctx = canvas.getContext('2d');
-            let dataPoints = [20, 35, 45, 30, 60, 75, 50, 80, 95, 60, 70, 85];
-
-            setInterval(() => {
-                dataPoints.shift();
-                dataPoints.push(Math.floor(Math.random() * 50) + 40);
-                
-                // Dibujar
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.beginPath();
-                ctx.strokeStyle = '#0066ff';
-                ctx.lineWidth = 3;
-
-                const step = canvas.width / (dataPoints.length - 1);
-                dataPoints.forEach((val, i) => {
-                    const x = i * step;
-                    const y = canvas.height - (val / 100 * canvas.height);
-                    if(i === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
-                });
-                ctx.stroke();
-
-                // Actualizar números simulados
-                document.getElementById('val-players').innerText = 200 + Math.floor(Math.random() * 60);
-                document.getElementById('val-reqs').innerText = (1300 + Math.floor(Math.random() * 200)).toLocaleString();
-            }, 1200);
-        }
-
-        function poblarUsuariosSimulados() {
-            const tbody = document.getElementById('users-table-body');
-            const users = [
-                {id: "usr_99", email: "player1@gmail.com", lvl: 42, coins: 1250, status: "Activo"},
-                {id: "usr_102", email: "gamer_pro@hotmail.com", lvl: 88, coins: 9400, status: "Activo"},
-                {id: "usr_204", email: "cheater_x@yahoo.com", lvl: 1, coins: 0, status: "Baneado"}
-            ];
-            
-            tbody.innerHTML = '';
-            users.forEach(u => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td><b>${u.id}</b></td>
-                        <td>${u.email}</td>
-                        <td>${u.lvl}</td>
-                        <td>🪙 ${u.coins}</td>
-                        <td><span style="color:${u.status === 'Activo' ? 'var(--success)' : 'var(--danger)'}">${u.status}</span></td>
-                        <td>
-                            <button onclick="alert('Acción ejecutada sobre ${u.id}')" style="padding:4px 8px; border-radius:4px; border:1px solid #ccc; cursor:pointer;">Editar</button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        function crearNuevoUsuario() {
-            const email = prompt("Email del nuevo jugador:");
-            if(!email) return;
-            const tbody = document.getElementById('users-table-body');
-            tbody.innerHTML += `
-                <tr>
-                    <td><b>usr_${Math.floor(Math.random()*900+100)}</b></td>
-                    <td>${email}</td>
-                    <td>1</td>
-                    <td>🪙 100</td>
-                    <td><span style="color:var(--success)">Activo</span></td>
-                    <td><button style="padding:4px 8px; border-radius:4px; border:1px solid #ccc;">Editar</button></td>
-                </tr>
-            `;
-            addLog(`[AUTH] Nuevo usuario creado: ${email}`);
-        }
-
-        function poblarArbolDBDefault() {
-            const container = document.getElementById('db-tree-container');
-            container.innerHTML = `
-                <div style="font-family:monospace; font-size:0.95rem;">
-                    <span style="color:var(--primary); font-weight:bold;">root/</span>
-                    <div style="margin-left:20px; border-left:2px dashed #cbd5e1; padding-left:10px; margin-top:5px;">
-                        <div><span style="color:#d63384; font-weight:bold;">configuracion:</span> { modo: "online" }</div>
-                        <div><span style="color:#d63384; font-weight:bold;">puntuacion_maxima:</span> <span style="color:#10b981;">9950</span></div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function agregarNodoDB() {
-            const clave = prompt("Nombre del nodo/clave:");
-            if(!clave) return;
-            const valor = prompt("Valor asignado:");
-            
-            const container = document.getElementById('db-tree-container');
-            container.innerHTML += `
-                <div style="font-family:monospace; margin-top:5px; margin-left:20px;">
-                    <span style="color:#d63384; font-weight:bold;">${clave}:</span> <span style="color:#10b981;">"${valor}"</span>
-                </div>
-            `;
-            addLog(`[DB] Nodo insertado: /${clave}`);
-        }
-
-        function setRulePreset(type) {
-            const textarea = document.getElementById('rules-text');
-            if(type === 'public') {
-                textarea.value = '{\n  "rules": {\n    ".read": true,\n    ".write": true\n  }\n}';
-            } else if(type === 'readonly') {
-                textarea.value = '{\n  "rules": {\n    ".read": true,\n    ".write": false\n  }\n}';
-            } else {
-                textarea.value = '{\n  "rules": {\n    ".read": "auth != null",\n    ".write": "auth != null"\n  }\n}';
-            }
-        }
-
-        function guardarReglas() {
-            alert("Reglas de seguridad compiladas y aplicadas.");
-            addLog("[RULES] Reglas de seguridad actualizadas.");
-        }
-
-        function addLog(msg) {
-            const logBox = document.getElementById('analytics-log-box');
-            logBox.innerHTML += `<br>${msg}`;
-            logBox.scrollTop = logBox.scrollHeight;
-        }
-
-        function limpiarLogs() {
-            document.getElementById('analytics-log-box').innerText = "[INFO] Registros limpiados.";
-        }
-
-        // --- 8. GENERADOR DE LOS 68 AJUSTES GLOBALES ---
-        function generar68Ajustes() {
-            const nombres = [
-                // Red y Conexión (1-12)
-                "Compresión GZIP en Red", "Sockets Persistentes", "Forzar Encriptación WSS", "Modo IPv6 Primario",
-                "Keep-Alive (15s)", "Reconexión Automática", "Límite de Paquetes/seg", "Puerto WSS Personalizado",
-                "Buffer de Datos en Memoria", "Verificación de Latencia Ping", "Filtro de IPs Sospechosas", "Límite Ancho Banda/User",
-                // Seguridad y Anti-Bot (13-24)
-                "Protección Anti-DDoS", "Filtro de Inyección SQL/JSON", "Autenticación Dos Pasos (2FA)", "Token de Sesión Expire (24h)",
-                "Cifrado AES-256 en BD", "Bloqueo por Intentos Fallidos", "Firma Digital de Paquetes", "Modo Estricto CORS",
-                "Captacha para Registros", "Validación de Dominio Origen", "Inhabilitar Cuentas Inactivas", "Ocultar Versión del Servidor",
-                // Gameplay y Físicas (25-36)
-                "Motor de Físicas Servidor", "Sincronización de Posiciones", "Tick Rate Elevado (60Hz)", "Colisión entre Jugadores",
-                "Daño por Caída Habilitado", "Fuego Amigo (PVP)", "Respawn Automático (3s)", "Guardado de Inventario",
-                "Gravedad Personalizada", "Límite de Jugadores por Room", "Tiempo de Espera en Lobby", "Modo Espectador Activo",
-                "Visibilidad de Hitboxes", "Modo Torneo", "Items Caídos Persistentes", "Sincronización Climatológica",
-                // Chat y Comunidad (37-48)
-                "Filtro de Groserías Activo", "Modo Chat Lento (5s)", "Mensajes Privados (PM)", "Permitir Links en Chat",
-                "Voice Chat Espacial", "Sistema de Reportes", "Mensaje de Bienvenida", "Historial de Chat (50 msgs)",
-                "Silenciar Usuarios Ruidosos", "Comandos de Moderador", "Emojis Personalizados", "Notificaciones Push Globales",
-                // Base de Datos y Almacenamiento (49-60)
-                "Auto-Backup Cada 24h", "Indexado de Búsqueda Rápida", "Caché Local en Navegador", "Persistencia Fuera de Línea",
-                "Límite Tamaño de Archivo (10MB)", "Compactación de Registros", "Triggers de Base de Datos", "Logs de Cambios (Audit)",
-                "Estructura Estricta JSON", "Restauración de Punto de Control", "Sincronización Delta", "Soporte para Archivos Binarios",
-                // Rendimiento y Analíticas (61-68)
-                "Recolección de Basura (RAM)", "Auto-Escalado de CPU", "Modo Depuración / Debug", "Métricas de Performance",
-                "Exportación de Analíticas", "Optimización de Memoria", "Uso Multinúcleo", "Alertas por Sobrecarga"
-            ];
-
-            const grid = document.getElementById('container-68-settings');
-            grid.innerHTML = '';
-            
-            nombres.forEach((nombre, idx) => {
-                grid.innerHTML += `
-                    <div class="setting-box">
-                        <span>${idx + 1}. ${nombre}</span>
-                        <label class="switch">
-                            <input type="checkbox" ${idx % 2 === 0 ? 'checked' : ''} onchange="addLog('[CONFIG] Ajuste cambiado: ${nombre}')">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                `;
-            });
-        }
+      function copySnippet() {
+          const text = document.getElementById('snippet-code').innerText;
+          navigator.clipboard.writeText(text);
+          alert("¡Código de integración copiado al portapapeles!");
+      }
     </script>
 </body>
 </html>
