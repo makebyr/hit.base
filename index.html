@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hitbase Live Chat - HTB-6I0HYBL</title>
+    
+    <!-- ÚNICAMENTE SE IMPORTA HITBASE -->
+    <script src="https://cdn.hitbase.io/v2/hitbase.js"></script>
+    
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .chat-container { width: 100%; max-width: 480px; background: #fff; border-radius: 14px; box-shadow: 0 4px 25px rgba(0,0,0,0.08); display: flex; flex-direction: column; overflow: hidden; height: 85vh; border: 1px solid #e2e8f0; }
+        .chat-header { background: #101828; color: #fff; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .chat-header h3 { margin: 0; font-size: 1.15rem; }
+        .chat-domain { font-family: monospace; font-size: 0.8rem; background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 20px; }
+        
+        .chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #f8fafc; }
+        .message { background: #fff; padding: 12px 16px; border-radius: 10px; border: 1px solid #e2e8f0; max-width: 80%; word-break: break-word; }
+        .message .user { font-weight: 700; font-size: 0.8rem; color: #3b82f6; margin-bottom: 4px; display: block; }
+        
+        .chat-input-area { padding: 15px; background: #fff; border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 10px; }
+        .chat-input-row { display: flex; gap: 10px; }
+        .chat-input-area input { padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; outline: none; font-size: 0.95rem; }
+        .chat-input-area input:focus { border-color: #3b82f6; }
+        .chat-input-area input#input-user { width: 120px; }
+        .chat-input-area input#input-msg { flex: 1; }
+        .chat-input-area button { background: #3b82f6; color: white; border: none; padding: 12px 22px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            <h3>💬 Hitbase Chat</h3>
+            <span class="chat-domain">hit./HTB-6I0HYBL</span>
+        </div>
+        
+        <div class="chat-messages" id="messages-box"></div>
+
+        <div class="chat-input-area">
+            <div class="chat-input-row">
+                <input type="text" id="input-user" placeholder="Tu nombre" value="Usuario1">
+            </div>
+            <div class="chat-input-row">
+                <input type="text" id="input-msg" placeholder="Escribe un mensaje..." autocomplete="off">
+                <button onclick="enviar()">Enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+      // 1. El usuario inicializa Hitbase (¡sin ver nada de Firebase!)
+      Hitbase.initializeApp({
+          apiKey: "HTB-6I0HYBL",
+          serverDomain: "hit./HTB-6I0HYBL"
+      });
+
+      const messagesBox = document.getElementById('messages-box');
+
+      // 2. Usar un método nativo de Hitbase para escuchar mensajes
+      Hitbase.chat.onMessageAdded((msg) => {
+          const div = document.createElement('div');
+          div.className = 'message';
+          div.innerHTML = `<span class="user">${msg.usuario}</span>${msg.texto}`;
+          messagesBox.appendChild(div);
+          messagesBox.scrollTop = messagesBox.scrollHeight;
+      });
+
+      // 3. Usar un método nativo de Hitbase para enviar mensajes
+      function enviar() {
+          const user = document.getElementById('input-user').value || "Anónimo";
+          const text = document.getElementById('input-msg').value;
+          
+          if(text.trim() !== "") {
+              Hitbase.chat.sendMessage({ usuario: user, texto: text });
+              document.getElementById('input-msg').value = '';
+          }
+      }
+
+      document.getElementById('input-msg').addEventListener('keypress', (e) => {
+          if(e.key === 'Enter') enviar();
+      });
+    </script>
+</body>
+</html>
